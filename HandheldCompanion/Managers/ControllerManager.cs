@@ -358,12 +358,20 @@ public static class ControllerManager
                 EventHelper.RaiseInputsUpdatedAsync(inputsUpdated, mapped, true);
         }
 
+        // UI navigation can mute controller input, but DSU motion must remain available
+        // regardless of which Handheld Companion window has focus.
+        ControllerState dsuInputs = mapped;
+
         // controller is muted
         if (ControllerMuted)
         {
             // keep only Special passthrough
             mutedState.ButtonState[ButtonFlags.Special] = mapped.ButtonState[ButtonFlags.Special];
+            dsuMutedState.ButtonState[ButtonFlags.Special] = mapped.ButtonState[ButtonFlags.Special];
+            dsuMutedState.GyroState.CopyFrom(mapped.GyroState);
+
             mapped = mutedState;
+            dsuInputs = dsuMutedState;
         }
 
         // Auto-raise pad touch flags when pad axes exceed deadzone, so downstream consumers don't require an explicit touch button mapping from the user.
@@ -374,7 +382,7 @@ public static class ControllerManager
 
         DS4Touch.UpdateInputs(mapped);
         VirtualManager.UpdateInputs(mapped, gamepadMotion);
-        DSUServer.UpdateInputs(mapped, motions);
+        DSUServer.UpdateInputs(dsuInputs, motions);
         DSUServer.Tick(ticks, delta);
     }
 
@@ -2670,6 +2678,7 @@ public static class ControllerManager
     }
 
     private static ControllerState mutedState = new ControllerState();
+    private static ControllerState dsuMutedState = new ControllerState();
 
     public static IController GetDefault(bool profilePage = false)
     {
